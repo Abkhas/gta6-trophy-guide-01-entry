@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leonida Trophy Guide — GTA VI · All 55 PS5 Trophies</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">VI</span>
+    <div><h1>LEONIDA TROPHY GUIDE</h1><p>Grand Theft Auto VI · PS5 · all 55 trophies · offline tracker</p></div>
+  </div>
+  <div class="progress" id="progress">0/55 · 0%</div>
+  <div class="grades" id="grades">P 0/1 · G 0/2 · S 0/6 · B 0/46</div>
+  <div class="top-actions">
+    <label class="spoiler-toggle"><input type="checkbox" id="spoilerToggle" checked> <span>Hide story spoilers</span></label>
+    <button id="exportBtn" type="button">Export</button>
+    <button id="importBtn" type="button">Import</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+  </div>
+  <div class="saved" id="savedAt">Saved in this browser — not yet</div>
+</header>
+
+<div class="audit" id="audit">Loading trophy data…</div>
+
+<nav class="views" id="viewTabs" aria-label="Views">
+  <button type="button" data-view="checklist" class="active">Checklist</button>
+  <button type="button" data-view="roadmap">Roadmap S1–S7</button>
+  <button type="button" data-view="missables">Missables</button>
+</nav>
+
+<div class="filters" id="filters">
+  <input type="search" id="searchBox" placeholder="Search a trophy, mission or place…" aria-label="Search trophies">
+  <div class="chips" id="kindChips"></div>
+  <div class="chips grades-chips" id="gradeChips"></div>
+  <label class="earned-only"><input type="checkbox" id="earnedOnly"> Earned only</label>
+</div>
+
+<main class="layout">
+  <section class="list-pane" aria-label="Trophy checklist">
+    <div class="list-head"><span id="listCount"></span><span class="list-hint">Click a trophy to open its guide →</span></div>
+    <ul class="trophy-list" id="trophyList"></ul>
+  </section>
+  <section class="detail-pane" id="detailPane" aria-label="Trophy guide detail">
+    <p class="detail-empty">Select a trophy on the left to see its official description, guide, sources and counter.</p>
+  </section>
+</main>
+
+<section class="roadmap-pane" id="roadmapPane" hidden></section>
+<section class="missables-pane" id="missablesPane" hidden></section>
+
+<footer class="foot">
+  <p><strong>Platinum at a glance:</strong> ~200 hours · difficulty 4/10 · 1 playthrough · 0 online trophies · no mission replay, no New Game+ · cheats disable trophies and saving · 15 manual save slots — keep a save at the start and end of each chapter. Sources: PowerPyx, Push Square, KeenGamer, GTASpotter — all retrieved 20 Nov 2026. Guide text is written in our own words; official trophy names and descriptions are shown as published by PlayStation. No Rockstar artwork is used.</p>
+  <p class="foot-note">Roadmap stages are this guide's own order, not official. Counts are the ones the cited guides give; where guides disagree or a method is still being confirmed, the trophy is flagged UNCONFIRMED in its detail panel.</p>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>
