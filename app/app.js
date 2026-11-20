@@ -24,6 +24,41 @@ let trophies = [];
 let state = { earned: {}, counters: {}, spoiler: true, savedAt: null };
 let ui = { view: 'checklist', kind: 'all', grade: 'all', earnedOnly: false, search: '', selected: null };
 
+// Global source registry: the guides this entry cites, numbered once in
+// first-appearance order, so every step can carry its citations [n] and every
+// SOURCES panel can say how many of the 55 guides cite each one.
+let sourceRegistry = []; // [{name, url, count}] in first-appearance order
+let sourceIndex = {};    // url -> 1-based global number
+let auditSteps = { total: 0, cited: 0, backed2: 0 };
+function buildSourceRegistry() {
+  sourceRegistry = [];
+  sourceIndex = {};
+  for (const t of trophies) {
+    for (const s of (t.sources || [])) {
+      if (!(s.url in sourceIndex)) {
+        sourceIndex[s.url] = sourceRegistry.length + 1;
+        sourceRegistry.push({ name: s.name, url: s.url, count: 0 });
+      }
+    }
+  }
+  for (const t of trophies) {
+    const seen = new Set();
+    for (const s of (t.sources || [])) {
+      if (!seen.has(s.url)) { seen.add(s.url); sourceRegistry[sourceIndex[s.url] - 1].count++; }
+    }
+  }
+  auditSteps = { total: 0, cited: 0, backed2: 0 };
+  for (const t of trophies) {
+    const n = (t.steps || []).length;
+    auditSteps.total += n;
+    if (t.sources && t.sources.length) auditSteps.cited += n;
+    if (t.sources && t.sources.length >= 2) auditSteps.backed2 += n;
+  }
+}
+function sourceNumbers(t) { return (t.sources || []).map((s) => sourceIndex[s.url]); }
+function citeString(t) { return sourceNumbers(t).map((n) => '[' + n + ']').join(' '); }
+function shortHost(url) { return url.replace(/^https?:\/\//, '').split('/')[0]; }
+
 function loadState() {
   try {
     const raw = localStorage.getItem(KEY);
@@ -83,6 +118,7 @@ function renderAudit() {
   const unconf = trophies.filter((t) => t.unconfirmed).length;
   document.getElementById('audit').innerHTML =
     '<b>AUDIT</b> · ' + total + '/55 trophies · ' + guides + '/55 guides · ' + cited + '/55 cited · ' +
+    auditSteps.cited + '/' + auditSteps.total + ' steps cited · ' + auditSteps.backed2 + ' backed by 2+ sources · ' +
     hidden + '/28 hidden · ' + miss + ' missable · <span class="warn">' + unconf +
     ' unconfirmed — listed honestly below</span> · Sources retrieved ' + RETRIEVED;
 }
@@ -122,7 +158,7 @@ function renderList() {
       '<span><span class="t-name">' + escapeHtml(displayName(t)) + '</span><br>' +
       '<span class="t-desc">' + escapeHtml(displayDesc(t)) + '</span>' + counter + '<br>' + flags.join(' ') + '</span>' +
       '<span class="t-meta"><span class="grade ' + t.grade + '">' + t.grade + '</span>' +
-      '<span class="t-kind">' + (KIND_LABELS[t.kind] || t.kind) + ' · S' + t.stage + '</span></span></li>';
+      '<span class="t-kind">' + (KIND_LABELS[t.kind] || t.kind) + ' · S' + t.stage + ' · ' + (t.sources || []).length + ' src</span></span></li>';
   }).join('');
   ul.querySelectorAll('li').forEach((li) => li.addEventListener('click', (e) => {
     if (e.target.matches('input[type="checkbox"]')) return;
@@ -184,13 +220,24 @@ function renderDetail() {
       html += '<div class="unconf-box"><h3>UNCONFIRMED — LISTED HONESTLY</h3><p>' + escapeHtml(t.unconfirmed_note || '') + '</p></div>';
     }
     html += '<div class="d-sec">GUIDE — IN OUR OWN WORDS</div><p>' + escapeHtml(t.guide || '') + '</p>';
-    if (t.steps && t.steps.length) {
-      html += '<ol class="steps">' + t.steps.map((s) => '<li>' + escapeHtml(s) + '</li>').join('') + '</ol>';
-    }
     if (t.sources && t.sources.length) {
-      html += '<div class="d-sec">SOURCES — RETRIEVED ' + RETRIEVED.toUpperCase() + '</div><ol class="sources">' +
-        t.sources.map((s, i) => '<li>[' + (i + 1) + '] ' + escapeHtml(s.name) + ' — <a href="' + escapeHtml(s.url) +
-        '" target="_blank" rel="noopener">' + escapeHtml(s.url) + '</a></li>').join('') + '</ol>';
+      html += '<div class="d-sec">SOURCES FOR THIS GUIDE — RETRIEVED ' + RETRIEVED.toUpperCase() + '</div><ol class="sources">' +
+        t.sources.map((s) => {
+          const n = sourceIndex[s.url];
+          const cov = sourceRegistry[n - 1].count;
+          return '<li><b>[' + n + ']</b> ' + escapeHtml(s.name) + ' — <a href="' + escapeHtml(s.url) +
+            '" target="_blank" rel="noopener">' + escapeHtml(shortHost(s.url)) + '</a> · in ' + cov + '/55 guides · ' + RETRIEVED + '</li>';
+        }).join('') + '</ol>';
+    }
+    if (t.steps && t.steps.length) {
+      html += '<div class="d-sec">HOW TO EARN IT — EACH STEP CITED</div><ol class="steps">' +
+        t.steps.map((s) => '<li><span class="cite">' + citeString(t) + '</span> ' + escapeHtml(s) + '</li>').join('') + '</ol>';
+    }
+    if (t.dispute) {
+      html += '<div class="dispute-box"><h3>SOURCES DIFFER — ' + escapeHtml(t.dispute.question) + '</h3>' +
+        '<p><b>A ·</b> ' + escapeHtml(t.dispute.a) + ' <span class="cite">' + citeString(t) + '</span></p>' +
+        '<p><b>B ·</b> ' + escapeHtml(t.dispute.b) + ' <span class="cite">' + citeString(t) + '</span></p>' +
+        '<p><b>Our call:</b> ' + escapeHtml(t.dispute.call) + '</p></div>';
     }
     html += '<span class="stage-tag">Roadmap: ' + escapeHtml(stageName(t.stage)) + '</span>';
   }
@@ -305,6 +352,7 @@ async function init() {
     const res = await fetch(DATA_URL);
     const data = await res.json();
     trophies = data.trophies || data;
+    buildSourceRegistry();
   } catch (e) {
     document.getElementById('audit').textContent = 'Could not load data/trophies.json — check the file is present.';
     window.__shotReady = true;

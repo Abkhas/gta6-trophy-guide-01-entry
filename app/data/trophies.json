@@ -627,6 +627,12 @@
     "Wait for the final zen animation at each spot — it only counts then.",
     "The last spot needs both characters together, after Chapter 2's Coffee Break."
    ],
+   "dispute": {
+    "question": "Is the Chapter 1 balcony meditation required for the trophy?",
+    "a": "Yes — the balcony adds +1 to the counter, and this trophy needs all 18 spots, so do it in Chapter 1.",
+    "b": "Maybe not — the balcony is not marked as a Meditation Spot like the rest, and the 100% checklist needs only 15 of 18.",
+    "call": "Do it anyway in Chapter 1 — a manual save at the start of Chapter 1 is cheap insurance."
+   },
    "sources": [
     {"name": "PowerPyx — GTA 6 Trophy Guide & Roadmap", "url": "https://www.powerpyx.com/gta-6-grand-theft-auto-vi-trophy-guide-roadmap/"},
     {"name": "Push Square — GTA 6 Trophy Guide & Roadmap", "url": "https://www.pushsquare.com/guides/gta-6-trophy-guide-and-roadmap"},
