@@ -15,6 +15,20 @@ const STAGES = [
   { id: 7, name: 'S7 · Cleanup & the platinum', note: 'The 100% checklist, the last stunts, the odd ones out — then the platinum pops.' },
 ];
 
+// Roadmap action steps: [trophyId, stepIndex] per stage. The step text is
+// taken verbatim from that trophy's own cited steps in trophies.json — no new
+// text, no new sources. Each step carries its trophy's global citation
+// markers, exactly like the checklist detail pane.
+const ROADMAP_STEPS = {
+  1: [[2, 0], [28, 0], [20, 1], [21, 2], [28, 1], [4, 2]],
+  2: [[5, 0], [9, 0], [6, 0], [13, 0], [7, 2]],
+  3: [[25, 0], [23, 1], [24, 1], [26, 1], [29, 3], [25, 3]],
+  4: [[17, 2], [18, 1], [19, 1], [16, 1], [32, 2]],
+  5: [[30, 1], [31, 2], [35, 3], [42, 0], [54, 1], [55, 3]],
+  6: [[40, 0], [43, 1], [33, 2], [39, 2], [36, 3], [41, 1]],
+  7: [[14, 1], [14, 2], [15, 1], [1, 2], [52, 3], [53, 1]],
+};
+
 const KIND_LABELS = {
   story: 'Story', strand: 'Strands', activity: 'Activities', collectible: 'Collectibles',
   crime: 'Crime', misc: 'Misc', platinum: 'Platinum', completion: '100%',
@@ -116,11 +130,16 @@ function renderAudit() {
   const hidden = trophies.filter((t) => t.hidden).length;
   const miss = trophies.filter((t) => t.missable).length;
   const unconf = trophies.filter((t) => t.unconfirmed).length;
+  const disputes = trophies.filter((t) => t.dispute);
+  const singleSrcSteps = trophies.filter((t) => t.sources && t.sources.length < 2)
+    .reduce((n, t) => n + (t.steps || []).length, 0);
   document.getElementById('audit').innerHTML =
     '<b>AUDIT</b> · ' + total + '/55 trophies · ' + guides + '/55 guides · ' + cited + '/55 cited · ' +
     auditSteps.cited + '/' + auditSteps.total + ' steps cited · ' + auditSteps.backed2 + ' backed by 2+ sources · ' +
     hidden + '/28 hidden · ' + miss + ' missable · <span class="warn">' + unconf +
-    ' unconfirmed — listed honestly below</span> · Sources retrieved ' + RETRIEVED;
+    ' unconfirmed — listed honestly below</span> · disputes ' + disputes.length +
+    (disputes.length ? ' (' + disputes.map((t) => '#' + t.id).join(', ') + ')' : '') +
+    ' · single-source steps ' + singleSrcSteps + ' · at-risk ' + unconf + ' unconfirmed · Sources retrieved ' + RETRIEVED;
 }
 
 function renderChips() {
@@ -259,14 +278,39 @@ function stageName(n) { const s = STAGES.find((x) => x.id === n); return s ? s.n
 
 function renderRoadmap() {
   const pane = document.getElementById('roadmapPane');
-  pane.innerHTML = '<div class="stage-grid">' + STAGES.map((s) => {
+  // NEXT UP: the first unearned trophy in roadmap order (stage, then id).
+  // A hidden story trophy is named only when spoilers are shown; its first
+  // cited action step is always the headline — that is what to do next.
+  const ordered = [...trophies].sort((a, b) => a.stage - b.stage || a.id - b.id);
+  const next = ordered.find((t) => !state.earned[t.id]);
+  let nextHtml = '';
+  if (next) {
+    const firstStep = (next.steps || [])[0];
+    nextHtml = '<div class="next-up"><span class="lbl">NEXT UP</span>' +
+      (isStoryHidden(next) ? '' : '<b>' + escapeHtml(next.name) + '</b> · ') +
+      '#' + next.id + ' · ' + escapeHtml(stageName(next.stage)) + ' · <span class="grade ' + next.grade + '">' + next.grade + '</span> · ' +
+      (KIND_LABELS[next.kind] || next.kind) +
+      (firstStep ? '<div class="next-step"><span class="cite">' + citeString(next) + '</span> ' + escapeHtml(firstStep) + '</div>' : '') +
+      '</div>';
+  }
+  pane.innerHTML = nextHtml + '<div class="stage-grid">' + STAGES.map((s) => {
     const members = trophies.filter((t) => t.stage === s.id);
     const done = members.filter((t) => state.earned[t.id]).length;
+    const miss = members.filter((t) => t.missable).length;
+    const unconf = members.filter((t) => t.unconfirmed).length;
+    const hid = members.filter((t) => t.hidden).length;
+    const steps = members.reduce((n, t) => n + (t.steps || []).length, 0);
+    const picks = (ROADMAP_STEPS[s.id] || []).map(([tid, si]) => {
+      const t = trophies.find((x) => x.id === tid);
+      const step = t && t.steps ? t.steps[si] : null;
+      if (!t || !step) return '';
+      return '<li><span class="cite">' + citeString(t) + '</span> ' + escapeHtml(step) + '</li>';
+    }).join('');
     return '<div class="stage-card"><h3>' + escapeHtml(s.name) + ' — ' + done + '/' + members.length + ' earned</h3>' +
-      '<div class="stage-meta">' + escapeHtml(s.note) + '</div><ul>' +
-      members.map((t) => '<li class="' + (state.earned[t.id] ? 'done' : '') + '">' +
-        escapeHtml(isStoryHidden(t) ? 'Hidden story trophy' : t.name) +
-        ' <span style="color:var(--dim)">(' + t.grade + ')</span></li>').join('') + '</ul></div>';
+      '<div class="stage-meta">' + members.length + ' trophies · ' + miss + ' missable · ' + unconf + ' unconfirmed · ' +
+      hid + ' hidden · ' + steps + ' cited steps</div>' +
+      '<div class="stage-meta">' + escapeHtml(s.note) + '</div>' +
+      '<ol class="roadmap-steps">' + picks + '</ol></div>';
   }).join('') + '</div>';
 }
 
@@ -278,6 +322,15 @@ function renderMissables() {
     'Positive Mental Attitude. Every other trophy is doable after the story in free-roam, and every trophy quest-giver returns after the story. ' +
     'Keep a manual save at the start and end of each chapter (15 save slots) as a safety net. ' + unconf.length +
     ' trophies are flagged UNCONFIRMED below — their exact triggers are still being confirmed by the guides we cite.</p>' +
+    '<table class="miss-grid"><caption>TROPHY × CHAPTER — WHERE THE RISK SITS</caption><thead><tr><th>Stage</th><th>Possibly missable</th><th>Unconfirmed (at risk)</th></tr></thead><tbody>' +
+    STAGES.map((s) => {
+      const m = trophies.filter((t) => t.stage === s.id && t.missable);
+      const u = trophies.filter((t) => t.stage === s.id && t.unconfirmed);
+      const cell = (arr) => arr.length
+        ? arr.map((t) => escapeHtml(t.name) + ' (#' + t.id + ')').join('<br>')
+        : '<span class="ok">— none</span>';
+      return '<tr><td>' + escapeHtml(s.name) + '</td><td>' + cell(m) + '</td><td>' + cell(u) + '</td></tr>';
+    }).join('') + '</tbody></table>' +
     '<div class="miss-list">' +
     miss.map((t) => '<div class="miss-card"><h3>⚠ ' + escapeHtml(t.name) + ' <span class="grade ' + t.grade + '">' + t.grade + '</span></h3><p>' +
       escapeHtml(t.missable_reason || '') + '</p><p style="margin-top:6px">' + escapeHtml(t.guide || '') + '</p></div>').join('') +
